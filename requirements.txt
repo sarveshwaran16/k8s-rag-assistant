@@ -1,0 +1,23 @@
+# Ingestion
+langchain==0.2.16
+langchain-community==0.2.16
+beautifulsoup4==4.12.3
+requests==2.32.3
+httpx==0.27.2
+tiktoken==0.7.0
+
+# Embedding
+sentence-transformers==3.1.1
+torch==2.4.1
+
+# Vector Store
+chromadb==0.5.5
+
+# Query API
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+pydantic==2.9.2
+
+# Utilities
+python-dotenv==1.0.1
+tqdm==4.66.5

@@ -1,6 +1,6 @@
 # Ingestion
-langchain==0.2.16
-langchain-community==0.2.16
+langchain==0.3.30
+langchain-community==0.3.24
 beautifulsoup4==4.12.3
 requests==2.32.3
 httpx==0.27.2
@@ -21,3 +21,7 @@ pydantic==2.9.2
 # Utilities
 python-dotenv==1.0.1
 tqdm==4.66.5
+
+# Knowledge Graph
+neo4j==5.25.0
+langchain-neo4j==0.3.0

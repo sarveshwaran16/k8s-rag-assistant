@@ -10,8 +10,7 @@ HEADERS = {
 }
 
 RELEVANT_RUNBOOKS = [
-    "/docs/kube-prometheus-stack/",
-    "/docs/kubernetes/",
+    "/runbooks/",
 ]
 
 
@@ -25,10 +24,9 @@ def get_runbook_urls() -> list[str]:
 
     for a in soup.find_all("a", href=True):
         href = a["href"]
-        if any(href.startswith(path) for path in RELEVANT_RUNBOOKS):
-            full_url = BASE_URL + href if href.startswith("/") else href
-            if full_url not in urls:
-                urls.append(full_url)
+        if "/runbooks/" in href and href.startswith("http"):
+            if href not in urls:
+                urls.append(href)
 
     return urls
 

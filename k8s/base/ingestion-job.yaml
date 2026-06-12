@@ -1,0 +1,27 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: ingestion-job
+  namespace: rag-assistant
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: ingestion
+          image: k8s-rag/ingestion:latest
+          imagePullPolicy: Never
+          env:
+            - name: CHROMA_HOST
+              value: "chroma-service"
+            - name: CHROMA_PORT
+              value: "8002"
+            - name: CHROMA_COLLECTION
+              value: "k8s_rag"
+          resources:
+            requests:
+              memory: "1Gi"
+              cpu: "500m"
+            limits:
+              memory: "2Gi"
+              cpu: "1"

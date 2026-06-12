@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: query-api
+  namespace: rag-assistant
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: query-api
+  template:
+    metadata:
+      labels:
+        app: query-api
+    spec:
+      containers:
+        - name: query-api
+          image: k8s-rag/query-api:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8000
+          env:
+            - name: CHROMA_HOST
+              value: "chroma-service"
+            - name: CHROMA_PORT
+              value: "8002"
+            - name: EMBED_SERVICE_URL
+              value: "http://embedding-service:8001"
+            - name: OLLAMA_HOST
+              value: "http://ollama-service:11434"
+            - name: CHROMA_COLLECTION
+              value: "k8s_rag"
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: query-api-service
+  namespace: rag-assistant
+spec:
+  selector:
+    app: query-api
+  ports:
+    - port: 8000
+      targetPort: 8000
+  type: NodePort
+  

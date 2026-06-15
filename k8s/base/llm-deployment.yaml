@@ -20,11 +20,11 @@ spec:
             - containerPort: 11434
           resources:
             requests:
-              memory: "4Gi"
-              cpu: "2"
+              memory: "3Gi"
+              cpu: "1"
             limits:
-              memory: "6Gi"
-              cpu: "4"
+              memory: "5Gi"
+              cpu: "2"
           volumeMounts:
             - name: ollama-storage
               mountPath: /root/.ollama

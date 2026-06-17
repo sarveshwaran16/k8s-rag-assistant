@@ -8,7 +8,7 @@ from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunct
 from dotenv import load_dotenv
 from tqdm import tqdm
 
-from knowledge_graph.rule_extractor import extract_entities_rule_based as extract_entities
+from knowledge_graph.extractor import extract_entities
 from knowledge_graph.graph_store import get_driver, create_indexes, upsert_entities, count_entities
 
 load_dotenv()

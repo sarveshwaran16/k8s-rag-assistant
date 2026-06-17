@@ -4,14 +4,21 @@ langchain-community==0.3.24
 beautifulsoup4==4.12.3
 requests==2.32.3
 httpx==0.27.2
-tiktoken==0.7.0
+tiktoken==0.9.0
 
 # Embedding
 sentence-transformers==3.1.1
-torch==2.4.1
+torch==2.6.0
 
 # Vector Store
 chromadb==0.5.5
+
+# Knowledge Graph
+neo4j==5.25.0
+langchain-neo4j==0.3.0
+
+# Assistant
+langgraph==0.2.28
 
 # Query API
 fastapi==0.115.0
@@ -21,7 +28,3 @@ pydantic==2.9.2
 # Utilities
 python-dotenv==1.0.1
 tqdm==4.66.5
-
-# Knowledge Graph
-neo4j==5.25.0
-langchain-neo4j==0.3.0

@@ -36,7 +36,8 @@ spec:
               mountPath: /data
       volumes:
         - name: neo4j-storage
-          emptyDir: {}
+          persistentVolumeClaim:
+            claimName: neo4j-pvc
 ---
 apiVersion: v1
 kind: Service

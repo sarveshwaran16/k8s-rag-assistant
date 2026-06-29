@@ -392,7 +392,27 @@ Two parsing fixes were each tried:
 1. **Trust only the first word** — Case 1 wrongly passes as grounded (model said "NO" first despite meaning the opposite).
 2. **Scan full text for unsupported-claim signals** (`"not supported"`, `"cannot be confirmed"` …) — fixes Case 1 but breaks Case 2, because Case 2's sentence also contains `"not supported"` inside a double negative (`"does not contain claims that are not supported"`), which simple string matching cannot distinguish from an actual unsupported-claim signal.
 
-**Honest conclusion:** The LLM-based check is the only approach capable of true semantic judgment, but on this model and hardware it is not reliable enough to trust as an automated gate. Its value in this project is as a real, tested experiment demonstrating exactly *why* the simpler citation/safety-check approach is the pragmatic production choice — not a missed opportunity. The alternative graph (`graph_llm_grounding.py`) can be swapped in by replacing `build_graph()` with `build_graph_with_llm_grounding()` in `graph.py`, and will behave correctly on a larger model or when structured output / JSON mode is available.
+**Honest conclusion:** The LLM-based check is the only approach capable of true semantic judgment, but on this model and hardware it is not reliable enough to trust as an automated gate. Its value in this project is as a real, tested experiment demonstrating exactly *why* the simpler citation/safety-check approach is the pragmatic production choice — not a missed opportunity. It will behave correctly on a larger model or when structured output / JSON mode is available.
+
+#### How to switch between the two pipelines
+
+The entire pipeline is wired through a single import in [`assistant.py`](file:///d:/rag-assistant/k8s-rag-assistant/services/assistant/assistant.py). One line controls which graph runs:
+
+**Currently active (production default — citation + command safety check, no second LLM call):**
+```python
+# services/assistant/assistant.py  line 6
+from assistant.graph import assistant_graph
+```
+
+**To switch to LLM-based faithfulness check (adds a second Ollama call after safety check):**
+```python
+# services/assistant/assistant.py  line 6
+from assistant.graph_llm_grounding import assistant_graph_llm_grounding as assistant_graph
+```
+
+That single import swap is the only change needed — the `ask()` function and everything above it stay identical. The LLM grounding pipeline adds one extra node (`run_llm_grounding`) after `run_safety_check` before reaching `END`, as defined in [`graph_llm_grounding.py`](file:///d:/rag-assistant/k8s-rag-assistant/services/assistant/graph_llm_grounding.py).
+
+> **When to use LLM grounding:** Only on hardware with a dedicated GPU and a larger model (Llama-3 8B / Mistral 7B with JSON/structured output mode). On `phi3:mini` + CPU, it roughly doubles latency and the YES/NO verdict parsing is unreliable — see the parsing problem documented above.
 
 ---
 

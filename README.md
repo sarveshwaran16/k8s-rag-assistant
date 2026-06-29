@@ -26,7 +26,10 @@ FastAPI  (port 8000)
     │
     ▼
 LangGraph Pipeline
-    ├── [1] retrieve_node   → Hybrid Search (ChromaDB + Neo4j)
+    ├── [1] retrieve_node
+    │       ├── vector_search  → ChromaDB  (candidate pool: 15 chunks)
+    │       ├── graph_search   → Neo4j     (top_k graph nodes)
+    │       └── rerank         → weighted score → top 5 returned
     ├── [2] build_prompt    → Assembles context + query into prompt
     └── [3] generate_node  → Calls Ollama → structured answer
     │
@@ -35,6 +38,48 @@ JSON Response  { answer, sources, relevance_scores }
 ```
 
 ---
+
+## Retrieval Pipeline
+
+Hybrid retrieval runs two searches in parallel and merges them before passing context to the LLM.
+
+### Step 1 — Candidate pool (vector search)
+
+`vector_search` queries ChromaDB with `candidate_pool=15` — fetching **15 chunks** instead of the final `TOP_K=5`. This wider pool gives the reranker real material to work with; without it, re-ranking on only 5 chunks would have little effect.
+
+### Step 2 — Graph augmentation
+
+`graph_search` queries Neo4j for entities matching keywords extracted from the query, returning up to `top_k` additional nodes (with a fixed graph score). Graph results are appended to the vector pool before re-ranking.
+
+### Step 3 — Weighted re-ranking
+
+`rerank()` scores every chunk in the combined pool using **three signals**, then sorts descending and returns the top `TOP_K=5`:
+
+| Signal | How it works |
+|--------|--------------|
+| **Base score** | Raw similarity score from ChromaDB (cosine distance) or fixed graph score from Neo4j |
+| **Keyword overlap boost** | +0.05 per query term found verbatim in the chunk text — rewards chunks that directly contain the user's exact words |
+| **Source weight** | Multiplies the boosted score — prioritises operationally precise sources over general theory |
+
+**Source weights (`reranker.py`):**
+
+| Source | Weight | Rationale |
+|--------|--------|-----------|
+| `kubernetes_docs` | 1.0 | Primary reference — highest precision for K8s-specific facts |
+| `prometheus_runbooks` | 1.0 | Operational runbooks — directly actionable, K8s-specific |
+| `k8s_failures` | 0.9 | Real failure post-mortems — highly relevant, slightly noisier |
+| `knowledge_graph` | 0.85 | Graph nodes add structure but are extracted, not verbatim source text |
+| `sre_book` | 0.6 | Valuable SRE theory but not K8s-specific — down-weighted |
+| `sre_workbook` | 0.6 | Same as SRE Book |
+
+**Final score formula:**
+```
+final_score = (base_score + keyword_boost) × source_weight
+```
+
+### Why this matters
+
+Vector similarity alone ranks chunks by semantic closeness to the query embedding. The reranker corrects for two known weaknesses of `all-MiniLM-L6-v2` on this corpus: it tends to surface SRE theory content (high semantic similarity) when K8s-specific runbook content (lower raw score, but operationally correct) is more useful, and it can miss chunks that share the user's exact technical terms without being semantically close in embedding space. The keyword boost and source weights compensate for both.
 
 ## Services and Ports
 
@@ -297,6 +342,60 @@ streamlit run app_ui.py
 
 ---
 
+## Guardrails & Grounding
+
+Three independent layers were implemented to reduce hallucination and limit the assistant to its intended domain. Each layer is operative in the production pipeline; the LLM-based variant is preserved as a documented, swappable experiment.
+
+---
+
+### 1. Input Guardrail — Scope Check (`guardrail.py`)
+
+A deterministic keyword gate that runs as the **first node** in the LangGraph pipeline, before any retrieval or LLM call.
+
+- Matches the query against a curated list of 100+ Kubernetes/SRE terms spanning core objects (`pod`, `deployment`, `pvc` …), failure states (`crashloopbackoff`, `oomkilled`, `imagepullbackoff` …), infra vocabulary (`dns`, `rbac`, `storageclass` …), and common troubleshooting phrases (`debug`, `stuck`, `keeps restarting` …).
+- If no keyword matches, the pipeline **short-circuits to `END` instantly** — zero retrieval calls, zero LLM calls — and returns a structured rejection message pointing the user toward a valid K8s question.
+- Tested and confirmed working in both directions: correctly rejects `"What is the capital of France?"` and correctly accepts `"How do I debug image pull failures?"`. The keyword list was expanded after a real miss caught during eval testing.
+- **Known limitation:** purely lexical — can both false-block legitimate questions phrased without K8s jargon, and false-allow off-topic questions that happen to contain an ambiguous common word from the list (e.g. `"scale"`, `"image"`, `"error"`).
+
+---
+
+### 2. Grounding (Faithfulness) — Three Layered Attempts
+
+#### Layer 1 — Prompt Instruction (`nodes.py`)
+
+Added explicit negative constraints to the LLM prompt:
+
+> *"Using ONLY the information in the context above, answer this question. Do not add facts, field names, or details that are not present in the context. If the context doesn't fully answer the question, say so rather than guessing."*
+
+**Result:** Measurably reduced fabricated details (eliminated invented field names like `retryAfterSeconds`). Did not eliminate all hallucination — the model still occasionally introduced vague, unsupported framing.
+
+#### Layer 2 — Citation Tags + Safety Check (`nodes.py` + `safety.py`) — **Production default**
+
+The prompt now requires the model to append a `[source:<title>]` citation tag after every factual statement, drawn exclusively from the retrieved source titles. A post-generation `safety_check_node` then:
+
+1. Extracts all citation tags and validates each against the actual set of retrieved source titles — flags any citation that references a source not in the retrieved set.
+2. Extracts all `kubectl <verb>` commands from the answer and checks each one verbatim against the raw text of the retrieved chunks.
+3. Any command that cannot be verified is **replaced in-place** with `<command omitted — '...' could not be verified against retrieved sources>` and a note is appended to the answer.
+
+**Result:** Zero extra latency (pure Python, no LLM call). Caught the specific "real-but-misapplied command" failure mode seen in earlier testing (`kubectl autoscale` suggested for a quota issue where the source never mentioned it in that context).
+
+#### Layer 3 — LLM-Based Faithfulness Check (`grounding_llm.py` + `graph_llm_grounding.py`) — **Experiment only, not production**
+
+Built as an explicitly swappable alternative (same architectural pattern as `builder.py` / `builder_llm.py`): a second Ollama call asks the model directly whether the answer contains any claim unsupported by the retrieved context.
+
+**Parsing problem encountered and documented:** `phi3:mini` does not reliably emit a clean YES/NO verdict. In testing on two known cases:
+
+- **Case 1 (fabricated claim):** The model replied `"NO — The provided information does not include details about retryAfterSeconds field; hence it cannot be confirmed as supported based on the given context."` — formally answers NO, but its own reasoning states the claim is unsupported (correct answer: YES). The model's reasoning is right; its chosen format is not.
+- **Case 2 (faithful answer):** The model replied `"NO — The provided answer does not contain any claims that are not supported by the given context."` — correct verdict, correct reasoning.
+
+Two parsing fixes were each tried:
+1. **Trust only the first word** — Case 1 wrongly passes as grounded (model said "NO" first despite meaning the opposite).
+2. **Scan full text for unsupported-claim signals** (`"not supported"`, `"cannot be confirmed"` …) — fixes Case 1 but breaks Case 2, because Case 2's sentence also contains `"not supported"` inside a double negative (`"does not contain claims that are not supported"`), which simple string matching cannot distinguish from an actual unsupported-claim signal.
+
+**Honest conclusion:** The LLM-based check is the only approach capable of true semantic judgment, but on this model and hardware it is not reliable enough to trust as an automated gate. Its value in this project is as a real, tested experiment demonstrating exactly *why* the simpler citation/safety-check approach is the pragmatic production choice — not a missed opportunity. The alternative graph (`graph_llm_grounding.py`) can be swapped in by replacing `build_graph()` with `build_graph_with_llm_grounding()` in `graph.py`, and will behave correctly on a larger model or when structured output / JSON mode is available.
+
+---
+
 ## Known Shortcomings vs. Ideal Assistant
 
 This section is transparent about where the current implementation falls short of the PRD targets, why each gap exists, and what the system would look like on adequate hardware.
@@ -368,6 +467,35 @@ This is roughly a **40–80× increase** in graph size and diversity. Hybrid ret
 **PRD requirement:** 6 knowledge sources ingested.
 
 **Actual:** 5 of 6 — OpenSRE.dev returned 0 chunks because the site was unreachable at ingestion time. The scraper and ingestion logic for it is fully implemented in `sources/opensre.py`. Re-running ingestion when the site is available would populate it automatically.
+
+---
+
+### 5. NodeNotReady — Right Document Existed, Nothing Retrieved It
+
+**Query:** *"How do I troubleshoot NodeNotReady?"* — a standard PRD evaluation question.
+
+**What happened:** The assistant correctly declined to answer rather than guess. Tracing the failure revealed the cause was not a content gap:
+
+- **The content exists.** A direct text search across all 25,601 chunks confirms a chunk titled `"KubeNodeNotReady#"` from the Prometheus runbooks, opening with *"the KubeNodeNotReady alert is fired when a Kubernetes node is not in Ready state"* — almost a perfect match for the question's wording.
+- **Vector search missed it.** Even with the candidate pool widened to 15 chunks, this exact chunk never appeared. `all-MiniLM-L6-v2` scored adjacent node-health content (`NodeClockSkewDetected`, `NodeNetworkReceiveErrs`) similarly to or higher than the directly relevant chunk — the embedding model's similarity judgment did not capture the closeness a human reader would see between the query phrasing and this specific technical term.
+- **Graph search was correctly designed but had nothing to find.** The keyword-extraction logic in `graph_retriever.py` correctly identified `"nodenotready"` as the entity to search for in Neo4j. But a direct query against the graph confirms zero entities contain that string — the rule-based extractor's keyword dictionary never created a node for this specific term, despite the source text containing it.
+- **Grounding then did exactly what it was built to do.** With neither retrieval path returning genuinely relevant content, the model — instructed to acknowledge gaps rather than guess — correctly declined. This is safe behaviour, but it is still a retrieval failure, not a success.
+
+**Root cause:** Two layers upstream — the embedding model's similarity judgment, and a gap in the rule-based knowledge graph's coverage. Every individual component behaved correctly given its inputs; the failure sits in what was fed to them. A richer knowledge graph (the kind `builder_llm.py` was designed to produce) would very plausibly have caught this specific case by having a properly-linked `NodeNotReady` entity for graph search to find even when vector search came up short — exactly the complementary strength hybrid retrieval is supposed to provide.
+
+---
+
+### 6. PVC Stuck in Pending — Fabricated Claim Dressed in a Real Citation
+
+**Query:** *"Why is my PVC stuck in Pending?"*
+
+**What happened:** The answer included two `[source:...]` citation tags, both pointing to genuinely retrieved documents — on the surface, a sign of grounding working. But the actual claim was fabricated: the answer described Kubernetes API pagination behaviour (the `continue` parameter, used for paging through list results) as the cause of PVCs getting stuck in Pending. This is a real Kubernetes concept, but entirely unrelated to PVC provisioning — invented and then wrapped in a citation that passed the `validate_citations` check without issue.
+
+**Why the citation check didn't catch it:** The citation system only verifies that a named source exists in the retrieved set. It has no way to check whether the specific claim attached to that citation is actually what the source says — only that the source was retrieved. This is a known, specific limit of the current implementation.
+
+**Root cause:** The same upstream weakness as Problem 5 — weak retrieval. All three retrieved sources scored an unusually low, suspiciously identical `0.362` similarity, meaning vector search effectively had nothing genuinely relevant and surfaced its least-bad options. This time, instead of declining (as in the NodeNotReady case), the model filled the gap with an invented mechanism and attached a real citation to it — which is arguably more dangerous than an uncited fabrication, because the citation makes the answer appear grounded and credible.
+
+**What this reveals about grounding consistency:** The model's response to weak retrieval is not consistent. Sometimes the grounding instruction succeeds in making it decline; sometimes it doesn't. Citations alone cannot reliably distinguish between those two outcomes after the fact. The deeper fix is better retrieval — not stronger post-generation checks.
 
 ---
 

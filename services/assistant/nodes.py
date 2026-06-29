@@ -25,10 +25,8 @@ def build_prompt_node(state: dict) -> dict:
     """Build the prompt from retrieved chunks."""
     chunks = state["retrieved_chunks"]
     query = state["query"]
-
     context_parts = []
     sources = []
-
     for i, chunk in enumerate(chunks, 1):
         context_parts.append(f"{chunk['metadata'].get('title', '')}: {chunk['text'][:250]}")
         sources.append({
@@ -37,15 +35,17 @@ def build_prompt_node(state: dict) -> dict:
             "source": chunk["metadata"].get("source", ""),
             "relevance_score": round(chunk.get("final_score", 0), 3)
         })
-
     context = "\n\n".join(context_parts)
-
+    source_titles = [s["title"] for s in sources]
     prompt = f"""Context: {context}
+
+Using ONLY the information in the context above, answer this question. Do not add facts, field names, or details that are not present in the context. If the context doesn't fully answer the question, say so rather than guessing.
+
+After every factual statement, add a citation tag in the format [source:<title>], using one of these exact titles: {', '.join(source_titles)}. If you cannot cite a source for a statement, omit that statement.
 
 Question: {query}
 
 Give a short answer covering: cause, fix. Max 100 words."""
-
     return {"prompt": prompt, "sources": sources}
 
 

@@ -12,10 +12,12 @@ TOP_K = int(os.getenv("TOP_K", 5))
 def hybrid_search(query: str, top_k: int = TOP_K) -> list[dict]:
     """
     Combine vector search + graph search and rerank results.
-    Returns top_k most relevant chunks.
+    Vector search returns a wider candidate pool than top_k so reranking has
+    real material to work with; only the final reranked list is truncated
+    to top_k.
     """
     print(f"[hybrid] Running vector search...")
-    vector_results = vector_search(query, top_k=top_k)
+    vector_results = vector_search(query, top_k=top_k, candidate_pool=15)
 
     print(f"[hybrid] Running graph search...")
     graph_results = graph_search(query, limit=top_k)

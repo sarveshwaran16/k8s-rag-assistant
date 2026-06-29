@@ -22,12 +22,17 @@ def get_collection():
     return client.get_collection(COLLECTION_NAME, embedding_function=ef)
 
 
-def vector_search(query: str, top_k: int = TOP_K) -> list[dict]:
-    """Search ChromaDB for semantically similar chunks."""
+def vector_search(query: str, top_k: int = TOP_K, candidate_pool: int = 15) -> list[dict]:
+    """
+    Search ChromaDB for semantically similar chunks. Retrieves a wider candidate
+    pool than top_k so the reranker has real material to reorder — otherwise a
+    chunk ranked 6th by raw similarity never gets a chance to surface even if
+    it's a better match once source-weighting is applied.
+    """
     collection = get_collection()
     results = collection.query(
         query_texts=[query],
-        n_results=top_k,
+        n_results=candidate_pool,
         include=["documents", "metadatas", "distances"]
     )
 

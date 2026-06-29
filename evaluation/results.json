@@ -1,7 +1,7 @@
 [
   {
     "query": "Why is my pod in CrashLoopBackOff?",
-    "answer": "Cause: A container within your Pod exited with non-zero status or was terminated by the system due to an unhandled error or misconfiguration that prevents it from running correctly. This triggers Kubernetes to restart the pod indefinitely, leading to a CrashLoopBackOff state.\n\nFix: Investigate and address the root cause of the container's failure using `kubectl logs <name-of-pod>` for diagnostic information. Ensure that your application code is error-free, dependencies are correctly installed, resource limits (like CPU/memory) aren't exceeded, and environment variables or configurations match what the app expects. If necessary, update container images to a stable version if recent changes introduced issues.",
+    "answer": "[source:Pod Lifecycle] A common reason your pod enters the `CrashLoopBackOff` state could be due to issues within its containers that lead them to exit with non-zero status or get terminated by the system without being set for automatic restarts, as described in [source:Pod Lifecycle]. To fix this issue, you should check the logs of your container using `[kubectl logs <name-of-pod>]`. This direct approach can help diagnose and resolve the root cause leading to crashes. If containers are not behaving as expected or if they're crashing without a clear reason in their logs, it might indicate problems with application code, dependencies, resource constraints, or misconfigurations that need addressing directly within your pod configuration or container setup [source:Pod Lifecycle].",
     "sources": [
       {
         "title": "Pod Lifecycle",
@@ -22,61 +22,61 @@
         "relevance_score": 0.848
       }
     ],
-    "response_time_sec": 87.4
+    "response_time_sec": 167.9
   },
   {
     "query": "What causes OOMKilled errors?",
-    "answer": "Cause: Memory exhaustion due to excessive allocations for requests and RPCs consuming all available RAM in the system or container manager evicting tasks leading to their death. Fixes include optimizing memory usage by tuning application code, increasing physical/virtual memory resources, using efficient data structures, implementing back-pressure mechanisms, employing more robust error handling strategies like circuit breakers and fallbacks, monitoring resource utilization closely for early detection of issues, adopting container orchestration tools that manage task lifecycles effectively to prevent evictions.",
+    "answer": "OOM-killed errors occur when containers use all available memory on their Node [source:Assign Memory Resources to Containers and Pods]. Fixes include setting resource limits for containers or improving overall system efficiency through better workload management, monitoring tools, and scaling strategies. If the issue persists despite these measures, it may require architectural changes such as adding more nodes or optimizing application code [source:TBNL, Addressing Cascading Failures].\n\n_Safety check: some citations reference sources not in the retrieved set: ['TBNL, Addressing Cascading Failures']_",
     "sources": [
       {
-        "title": "Addressing Cascading Failures",
-        "source_url": "https://sre.google/sre-book/addressing-cascading-failures/",
-        "source": "sre_book",
-        "relevance_score": 0.545
+        "title": "Assign Memory Resources to Containers and Pods",
+        "source_url": "https://kubernetes.io/docs/tasks/configure-pod-container/assign-memory-resource/",
+        "source": "kubernetes_docs",
+        "relevance_score": 0.447
+      },
+      {
+        "title": "TBNL",
+        "source_url": "https://www.tibobeijen.nl/2019/02/01/learning-from-kubernetes-cluster-failure/",
+        "source": "k8s_failures",
+        "relevance_score": 0.403
       },
       {
         "title": "Addressing Cascading Failures",
         "source_url": "https://sre.google/sre-book/addressing-cascading-failures/",
         "source": "sre_book",
-        "relevance_score": 0.484
-      },
-      {
-        "title": "On-Call",
-        "source_url": "https://sre.google/workbook/on-call/",
-        "source": "sre_workbook",
-        "relevance_score": 0.475
+        "relevance_score": 0.327
       }
     ],
-    "response_time_sec": 77.7
+    "response_time_sec": 105.8
   },
   {
     "query": "How do I troubleshoot NodeNotReady?",
-    "answer": "Cause: Unbounded CPU usage by API servers leading to resource contention among nodes and kubelet processes.  \nFix: Terminate the problematic instance after resolving issues preventing node replacement; monitor for recurrence using a node problem detector tool.",
+    "answer": "I'm sorry, but the provided context does not contain specific information on how to troubleshoot \"NodeNotReady.\" The text discusses monitoring node health and clock skew detection without detailing steps for this particular issue or its resolution [source:Monitor Node Health]. To address a \"NodeNotReady\" status effectively, one would typically need additional resources beyond the given context.",
     "sources": [
       {
-        "title": "Kubernetes and the Menace ELB, the tale of an outage",
-        "source_url": "https://itnext.io/kubernetes-and-the-menace-elb-the-tale-of-an-outage-c00bef678fc0",
-        "source": "k8s_failures",
-        "relevance_score": 0.581
+        "title": "Monitor Node Health",
+        "source_url": "https://kubernetes.io/docs/tasks/debug/debug-cluster/monitor-node-health/",
+        "source": "kubernetes_docs",
+        "relevance_score": 0.651
       },
       {
-        "title": "Breaking Kubernetes: How We Broke and Fixed our K8s Cluster",
-        "source_url": "https://medium.com/civis-analytics/https-medium-com-civis-analytics-breaking-kubernetes-how-we-broke-and-fixed-our-k8s-cluster-adfa6fbade61",
-        "source": "k8s_failures",
-        "relevance_score": 0.564
-      },
-      {
-        "title": "KubeNodeNotReady#",
-        "source_url": "https://runbooks.prometheus-operator.dev/runbooks/kubernetes/kubenodenotready/",
+        "title": "NodeClockSkewDetected#",
+        "source_url": "https://runbooks.prometheus-operator.dev/runbooks/node/nodeclockskewdetected/",
         "source": "prometheus_runbooks",
-        "relevance_score": 0.556
+        "relevance_score": 0.606
+      },
+      {
+        "title": "Monitor Node Health",
+        "source_url": "https://kubernetes.io/docs/tasks/debug/debug-cluster/monitor-node-health/",
+        "source": "kubernetes_docs",
+        "relevance_score": 0.591
       }
     ],
-    "response_time_sec": 29.4
+    "response_time_sec": 93.1
   },
   {
     "query": "Why is my PVC stuck in Pending?",
-    "answer": "Cause: A common reason could be insufficient cluster resources or misconfiguration leading to resource allocation issues.\nFix: Check and adjust the requested size of your PersistentVolume (PV) if necessary; ensure that you have sufficient available capacity on a suitable storage class, then retry creating the PVC with appropriate parameters using `kubectl`. If problems persist, inspect cluster quotas or seek assistance from Kubernetes support forums.",
+    "answer": "[source:ServiceCIDR] The continue option being set when retrieving more results from the server suggests that your Persistent Volume Claim (PVC) might be stuck waiting for resources to become available or a condition on those resources not yet met, which is common in scenarios where resource allocation policies are complex. To fix this issue, you may need to adjust these policies if possible and ensure continuity of queries with the correct continue value from previous results without altering query parameters except for 'continue'.\n\n[source:ServiceCIDR] If your PVC remains stuck at \"Pending,\" it could be due to resource constraints or misconfiguration. Check that all required resources are available, review and adjust allocation policies if necessary, ensure the correct continue value is used from a previous query result without changing other parameters except for 'continue'.\n\n[source:ServiceCIDR] The PVC might remain in \"Pending\" status due to resource constraints or misconfiguration.",
     "sources": [
       {
         "title": "ResourcePoolStatusRequest",
@@ -85,24 +85,30 @@
         "relevance_score": 0.362
       },
       {
-        "title": "ReplicationController",
-        "source_url": "https://kubernetes.io/docs/reference/kubernetes-api/core/replication-controller-v1/",
+        "title": "ServiceCIDR",
+        "source_url": "https://kubernetes.io/docs/reference/kubernetes-api/networking/service-cidr-v1/",
         "source": "kubernetes_docs",
         "relevance_score": 0.362
       },
       {
-        "title": "ResourceQuota",
-        "source_url": "https://kubernetes.io/docs/reference/kubernetes-api/core/resource-quota-v1/",
+        "title": "ServiceCIDR",
+        "source_url": "https://kubernetes.io/docs/reference/kubernetes-api/networking/service-cidr-v1/",
         "source": "kubernetes_docs",
         "relevance_score": 0.362
       }
     ],
-    "response_time_sec": 46.9
+    "response_time_sec": 153.3
   },
   {
     "query": "How do I diagnose Kubernetes DNS failures?",
-    "answer": "Cause: Potential misconfiguration in kube-dns or CoreDNS setup within the cluster; network issues affecting communication between pods and services using internal DNS names.\nFix: Verify Kubernetes master'self health, review `kubectl logs --namespace=kube-system -l k8s-app=kube-dns` for errors in CoreDNS containers or use tools like `dig`, `nslookup`, and tracing to pinpoint network issues. Ensure proper DNS service configuration within the cluster, such as setting up a headless Service if needed.",
+    "answer": "To diagnose Kubernetes DNS failures, first ensure your <command omitted \u2014 'kubectl is configured' could not be verified against retrieved sources> to communicate with the cluster [source:Configure DNS for a Cluster]. If issues persist, use hints provided on debugging resolution problems in this context [source:Debugging DNS Resolution]. For detailed steps and troubleshooting tips specific to services or pods' DNS configuration within Kubernetes clusters, refer to guidance under \"DNS for Services and Pods\" [source:DNS for Services and Pods] if applicable.\n\n_Safety check: removed unverified command(s): ['kubectl is configured']_",
     "sources": [
+      {
+        "title": "Configure DNS for a Cluster",
+        "source_url": "https://kubernetes.io/docs/tasks/access-application-cluster/configure-dns-cluster/",
+        "source": "kubernetes_docs",
+        "relevance_score": 0.989
+      },
       {
         "title": "Debugging DNS Resolution",
         "source_url": "https://kubernetes.io/docs/tasks/administer-cluster/dns-debugging-resolution/",
@@ -110,23 +116,17 @@
         "relevance_score": 0.979
       },
       {
-        "title": "Debug Services",
-        "source_url": "https://kubernetes.io/docs/tasks/debug/debug-application/debug-service/",
+        "title": "DNS for Services and Pods",
+        "source_url": "https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/",
         "source": "kubernetes_docs",
-        "relevance_score": 0.942
-      },
-      {
-        "title": "Debugging DNS Resolution",
-        "source_url": "https://kubernetes.io/docs/tasks/administer-cluster/dns-debugging-resolution/",
-        "source": "kubernetes_docs",
-        "relevance_score": 0.902
+        "relevance_score": 0.954
       }
     ],
-    "response_time_sec": 81.7
+    "response_time_sec": 105.2
   },
   {
     "query": "Why is my deployment continuously restarting?",
-    "answer": "Cause: Your Deployment may be constantly restarting due to resource constraints or misconfigurations that lead tasks requiring more resources during restarts (e.g., Java platforms). The system's default retry behavior after a task fails can also contribute if the `retryAfterSeconds` is not set high enough, causing it to exceed 600 seconds and trigger retries frequently.\n\nFix: Check your resource quotas in the namespace; increase them as needed for tasks that require more resources during restarts. Ensure proper configuration of retry policies by setting `retryAfterSeconds` beyond what's defaulted, if necessary (e.g., greater than 600 seconds). Review and optimize application code to reduce dynamic optimization overhead when restarting tasks.",
+    "answer": "[source:Deployments] Your Deployment may be constantly restarting due to the `restartPolicy` set to 'Always' or because it is encountering non-zero exit codes indicating failures [source:Pod Lifecycle]. To fix this, you can change your deployment configuration by setting a different `restartPolicy`, such as 'OnFailure', which will only restart if there are errors. Additionally, ensure that the conditions for quota satisfaction and controller completion align with Deployment requirements to prevent unnecessary restarts. [source:Deployments]",
     "sources": [
       {
         "title": "Deployments",
@@ -135,48 +135,48 @@
         "relevance_score": 0.623
       },
       {
+        "title": "Pod Lifecycle",
+        "source_url": "https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/",
+        "source": "kubernetes_docs",
+        "relevance_score": 0.62
+      },
+      {
         "title": "Deployments",
         "source_url": "https://kubernetes.io/docs/concepts/workloads/controllers/deployment/",
         "source": "kubernetes_docs",
         "relevance_score": 0.593
-      },
-      {
-        "title": "Load Balancing in the Datacenter",
-        "source_url": "https://sre.google/sre-book/load-balancing-datacenter/",
-        "source": "sre_book",
-        "relevance_score": 0.591
       }
     ],
-    "response_time_sec": 94.8
+    "response_time_sec": 109.3
   },
   {
     "query": "How can I investigate CPU throttling?",
-    "answer": "Cause of CPU throttling in Kubernetes may include misconfigured resource requests or limits that do not accurately reflect the actual workload demands. This can lead to over-provisioning and underutilization of resources. Fixes often involve adjusting request/limit settings, removing unnecessary restrictions, monitoring usage patterns for optimization, and updating kernels if a known bug is causing throttling despite low CPU utilization.",
+    "answer": "To investigate CPU throttling in Kubernetes, monitor the `throttling` metric to identify containers experiencing it [source:Kubernetes: Make your services faster by removing CPU limits]. Investigate if these instances correlate with low but non-zero average CPU usage over time (avg10). If a pattern is found where throttling occurs despite minimal CPU load, consider reviewing the container's resource requests and limits. Adjust them to ensure that containers have enough resources without unnecessarily constraining their performance [source:Understand Pressure Stall Information (PSI) Metrics].",
     "sources": [
       {
-        "title": "Kubernetes: Make your services faster by removing CPU limits",
-        "source_url": "https://erickhun.com/posts/kubernetes-faster-services-no-cpu-limits/",
-        "source": "k8s_failures",
-        "relevance_score": 0.761
+        "title": "Understand Pressure Stall Information (PSI) Metrics",
+        "source_url": "https://kubernetes.io/docs/reference/instrumentation/understand-psi-metrics/",
+        "source": "kubernetes_docs",
+        "relevance_score": 0.738
       },
       {
         "title": "Kubernetes: Make your services faster by removing CPU limits",
         "source_url": "https://erickhun.com/posts/kubernetes-faster-services-no-cpu-limits/",
         "source": "k8s_failures",
-        "relevance_score": 0.75
+        "relevance_score": 0.685
       },
       {
         "title": "Kubernetes: Make your services faster by removing CPU limits",
         "source_url": "https://erickhun.com/posts/kubernetes-faster-services-no-cpu-limits/",
         "source": "k8s_failures",
-        "relevance_score": 0.663
+        "relevance_score": 0.675
       }
     ],
-    "response_time_sec": 37.7
+    "response_time_sec": 123.5
   },
   {
     "query": "What are common causes of 5XX errors in Kubernetes?",
-    "answer": "Cause: Networking issues or misconfigurations leading to failed communication with the API server and other components (e.g., ValidatingWebhookConfiguration).  \nFix: Ensure proper network connectivity, correct configuration settings, and implement robust error handling in client applications. For prolonged downtime due to non-prod environment issues or node loss during auto-repair, consider improving monitoring systems and implementing failover strategies for high availability.",
+    "answer": "[source:KubeClientErrors#] Common causes include networking issues leading to over 1% error rate from the client side [source:Pod Lifecycle]. Fixes often involve checking logs using `kubectl logs <name-of-pod>` and addressing specific problems identified in those logs. If necessary, consult Kubernetes documentation for further guidance on resolving these errors.\n\n[source:KubeDeploymentGenerationMismatch#] Another cause can be a mismatch due to possible rollbacks during deployment generation [source:Pod Lifecycle]. To fix this issue, users should inspect the Pod lifecycle probes section and ensure proper synchronization between deployments before rolling back.",
     "sources": [
       {
         "title": "KubeClientErrors#",
@@ -185,68 +185,68 @@
         "relevance_score": 0.802
       },
       {
-        "title": "Kubernetes Failure Stories",
-        "source_url": "https://codeberg.org/hjacobs/kubernetes-failure-stories",
-        "source": "k8s_failures",
-        "relevance_score": 0.788
+        "title": "KubeDeploymentGenerationMismatch#",
+        "source_url": "https://runbooks.prometheus-operator.dev/runbooks/kubernetes/kubedeploymentgenerationmismatch/",
+        "source": "prometheus_runbooks",
+        "relevance_score": 0.782
       },
       {
-        "title": "SRCco.de",
-        "source_url": "https://srcco.de/posts/kubernetes-failure-stories.html",
-        "source": "k8s_failures",
-        "relevance_score": 0.735
+        "title": "Pod Lifecycle",
+        "source_url": "https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/",
+        "source": "kubernetes_docs",
+        "relevance_score": 0.756
       }
     ],
-    "response_time_sec": 40.9
+    "response_time_sec": 129.7
   },
   {
     "query": "How do I debug image pull failures?",
-    "answer": "Cause: Image pull failure can be due to network issues, incorrect credentials, or unsupported architecture between the client and server. It may also result from an outdated image that's no longer available in repositories.\n\nFix: Check your internet connection; if stable, verify Docker daemon status (`dockerd` command). Ensure correct username/password for registry access (if required) or switch to a compatible architecture by building the image locally using `docker build`. Update registries and images regularly to avoid such issues.",
+    "answer": "[source:authentication-token-webhook-cache-ttl] To resolve authentication token webhook callout cache TTL issues that might lead to image pull failure in Kubernetes (kubeadm), you should adjust the `authentication-token-webhook-cache-ttl` setting. This will ensure tokens are validated for a longer period, potentially resolving timing or caching problems during registration of nodes with etcd [source:user].\n\n[source:kubeadm Configuration (v1beta4)] If image pull failures persist after adjusting the cache TTL settings in kubeadm configuration v1beta4 and ignoring pre-flight errors that are not relevant to your issue, you may need to investigate further by examining etcd logs or reviewing node registration processes [source:user].\n\n[Note: The context provided does not directly address the cause of image pull failures nor a specific fix beyond adjusting cache T",
     "sources": [
       {
         "title": "authentication-token-webhook-cache-ttl",
         "source_url": "https://kubernetes.io/docs/reference/access-authn-authz/authentication/",
         "source": "knowledge_graph",
-        "relevance_score": 0.8
+        "relevance_score": 0.68
       },
       {
         "title": "user",
         "source_url": "https://kubernetes.io/docs/reference/kubernetes-api/core/pod-v1/",
         "source": "knowledge_graph",
-        "relevance_score": 0.8
+        "relevance_score": 0.68
       },
       {
-        "title": "secretFile",
-        "source_url": "https://kubernetes.io/docs/reference/kubernetes-api/core/pod-v1/",
-        "source": "knowledge_graph",
-        "relevance_score": 0.75
+        "title": "kubeadm Configuration (v1beta4)",
+        "source_url": "https://kubernetes.io/docs/reference/config-api/kubeadm-config.v1beta4/",
+        "source": "kubernetes_docs",
+        "relevance_score": 0.671
       }
     ],
-    "response_time_sec": 57.1
+    "response_time_sec": 153.8
   },
   {
     "query": "What should I check when a service is unreachable?",
-    "answer": "When a service becomes unreachable, first identify if it's due to network issues (cause) such as DNS failure or connectivity problems between datacenters by checking the routing tables and firewall rules. If so, troubleshoot these areas for misconfigurations or outages; otherwise, investigate software-level causes like service crashes or resource exhaustion within a specific environment that might require scaling resources up or rolling back recent changes (fix).",
+    "answer": "When a service becomes unreachable due to heavy load leading to cascading failures [source:Addressing Cascading Failures], it's essential to test the system under similar conditions and identify bottlenecks or dependencies that may be overwhelmed, then optimize resource allocation or implement better scaling strategies.\n\n[source:The Evolving SRE Engagement Model]",
     "sources": [
+      {
+        "title": "The Evolving SRE Engagement Model",
+        "source_url": "https://sre.google/sre-book/evolving-sre-engagement-model/",
+        "source": "sre_book",
+        "relevance_score": 0.532
+      },
       {
         "title": "Launch Coordination Engineering",
         "source_url": "https://sre.google/sre-book/reliable-product-launches/",
         "source": "sre_book",
-        "relevance_score": 0.847
+        "relevance_score": 0.508
       },
       {
         "title": "Addressing Cascading Failures",
         "source_url": "https://sre.google/sre-book/addressing-cascading-failures/",
         "source": "sre_book",
-        "relevance_score": 0.805
-      },
-      {
-        "title": "Managing Incidents",
-        "source_url": "https://sre.google/sre-book/managing-incidents/",
-        "source": "sre_book",
-        "relevance_score": 0.743
+        "relevance_score": 0.508
       }
     ],
-    "response_time_sec": 75.0
+    "response_time_sec": 87.6
   }
 ]

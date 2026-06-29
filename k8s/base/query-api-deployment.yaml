@@ -16,7 +16,7 @@ spec:
       containers:
         - name: query-api
           image: k8s-rag/query-api:latest
-          imagePullPolicy: Never
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8000
           env:

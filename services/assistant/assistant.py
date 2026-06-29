@@ -12,10 +12,12 @@ def ask(query: str) -> dict:
     """Run the assistant pipeline for a given query."""
     initial_state = {
         "query": query,
+        "in_scope": True,
         "retrieved_chunks": [],
         "prompt": "",
         "answer": "",
         "sources": [],
+        "safety_check": {},
         "messages": []
     }
 
@@ -24,7 +26,8 @@ def ask(query: str) -> dict:
     return {
         "query": query,
         "answer": result["answer"],
-        "sources": result["sources"]
+        "sources": result["sources"],
+        "grounding": result.get("grounding", {})
     }
 
 
